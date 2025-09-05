@@ -107,22 +107,12 @@ while True:
                 else:
                     st.text(f"Esperando más datos para {name}...")
 
-        # --- SECCIÓN DEL LOG Y DESCARGA ---
+        # --- SECCIÓN DEL LOG ---
         st.markdown("---")
+        st.subheader("Log de Métricas en Vivo")
         with open("metrics_log.txt", "r") as f:
             log_content_text = f.read()
-
-        log_col1, log_col2 = st.columns([0.7, 0.3])
-        with log_col1:
-            st.subheader("Log de Métricas en Vivo")
-        with log_col2:
-            st.download_button(
-               label="📥 Descargar Log",
-               data=log_content_text,
-               file_name='metrics_log.txt',
-               mime='text/plain',
-               key='download_log_button' # <--- ESTA ES LA LÍNEA QUE ARREGLA EL ERROR
-            )
+        
         with st.expander("Ver contenido del archivo metrics_log.txt"):
             st.code(log_content_text, language="text")
 
