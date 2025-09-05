@@ -15,7 +15,8 @@ st.set_page_config(
 
 # --- Estilo para los gráficos ---
 sns.set_style("darkgrid")
-sns.set_palette("viridis")
+# Usaremos un estilo más simple para los gráficos de línea
+plt.style.use('seaborn-v0_8-whitegrid')
 
 # --- Funciones de Lógica ---
 
@@ -41,16 +42,26 @@ def log_metric_to_file(name, value):
         f.write(log_line)
 
 def update_metrics():
-    """Actualiza las métricas si ha pasado su intervalo de tiempo."""
+    """
+    Actualiza las métricas, guarda el historial con timestamp y
+    descarta los datos de más de 60 segundos.
+    """
     now = time.time()
     for name, data in st.session_state.metrics.items():
+        # Actualiza el valor si ha pasado el intervalo
         if now - data["last_update"] >= data["interval"]:
             new_value = random.randint(0, 100)
             st.session_state.metrics[name]["value"] = new_value
             st.session_state.metrics[name]["last_update"] = now
-            st.session_state.metrics[name]["history"].append(new_value)
+            # Añade el nuevo dato como una tupla (timestamp, value)
+            st.session_state.metrics[name]["history"].append((now, new_value))
             st.session_state.metrics_processed_count += 1
             log_metric_to_file(name, new_value)
+        
+        # Mantiene solo los datos de los últimos 60 segundos
+        history = st.session_state.metrics[name]["history"]
+        st.session_state.metrics[name]["history"] = [(ts, val) for ts, val in history if now - ts <= 60]
+
 
 # --- Interfaz de Usuario ---
 
@@ -65,7 +76,7 @@ while True:
     update_metrics()
 
     with placeholder.container():
-        # --- SECCIÓN DE MÉTRICAS Y BARRAS ---
+        # --- SECCIÓN DE MÉTRricas y Barras (sin cambios) ---
         cpu_val = st.session_state.metrics["CPU"]["value"]
         ram_val = st.session_state.metrics["RAM"]["value"]
         disk_val = st.session_state.metrics["Disco"]["value"]
@@ -88,24 +99,42 @@ while True:
         st.info(f"**Total de Métricas Procesadas:** {count}")
         st.markdown("---")
 
-        # --- SECCIÓN: HISTOGRAMAS DE DISTRIBUCIÓN ---
-        st.markdown("### Distribución Histórica de Métricas")
-        hist_col1, hist_col2, hist_col3 = st.columns(3)
+        # --- NUEVA SECCIÓN: GRÁFICOS DE LÍNEA EN TIEMPO REAL ---
+        st.markdown("### Uso Histórico (Últimos 60 segundos)")
+        
+        chart_col1, chart_col2, chart_col3 = st.columns(3)
 
-        for col, name in zip([hist_col1, hist_col2, hist_col3], ["CPU", "RAM", "Disco"]):
+        now = time.time()
+        
+        for col, name, color in zip([chart_col1, chart_col2, chart_col3], ["CPU", "RAM", "Disco"], ['#1f77b4', '#ff7f0e', '#2ca02c']):
             with col:
                 history = st.session_state.metrics[name]["history"]
+                
                 if len(history) > 1:
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    sns.histplot(data=history, kde=True, ax=ax, bins=15)
-                    ax.set_title(f"Distribución de {name}")
-                    ax.set_xlabel("Uso (%)")
-                    ax.set_ylabel("Frecuencia")
-                    ax.set_xlim(0, 100)
+                    # Prepara los datos para el gráfico
+                    timestamps, values = zip(*history)
+                    
+                    fig, ax = plt.subplots(figsize=(8, 3))
+                    
+                    # Dibuja la línea principal
+                    ax.plot(timestamps, values, color=color)
+                    # Rellena el área bajo la línea
+                    ax.fill_between(timestamps, values, alpha=0.2, color=color)
+                    
+                    # Configuración de los ejes
+                    ax.set_ylim(0, 105) # Eje Y fijo de 0 a 100 (con un pequeño margen)
+                    ax.set_xlim(now - 60, now) # Eje X muestra los últimos 60 segundos
+                    
+                    # Estética del gráfico (estilo Administrador de Tareas)
+                    ax.set_title(f"Uso de {name}")
+                    ax.set_ylabel("Uso (%)")
+                    ax.set_xticklabels([]) # Oculta las etiquetas del eje X para un look más limpio
+                    ax.grid(True, linestyle='--', alpha=0.6)
+                    
                     st.pyplot(fig)
-                    plt.close(fig)
+                    plt.close(fig) # Importante para liberar memoria
                 else:
-                    st.text(f"Esperando más datos para {name}...")
+                    st.text(f"Generando datos para {name}...")
 
         # --- SECCIÓN DEL LOG ---
         st.markdown("---")
