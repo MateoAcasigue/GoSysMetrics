@@ -13,7 +13,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Estilo para los gráficos (Opcional, pero mejora la apariencia) ---
+# --- Estilo para los gráficos ---
 sns.set_style("darkgrid")
 sns.set_palette("viridis")
 
@@ -41,17 +41,14 @@ def log_metric_to_file(name, value):
         f.write(log_line)
 
 def update_metrics():
-    """
-    Verifica si es tiempo de actualizar alguna métrica. Si es así, genera un
-    nuevo valor y lo añade al historial de la métrica correspondiente.
-    """
+    """Actualiza las métricas si ha pasado su intervalo de tiempo."""
     now = time.time()
     for name, data in st.session_state.metrics.items():
         if now - data["last_update"] >= data["interval"]:
             new_value = random.randint(0, 100)
             st.session_state.metrics[name]["value"] = new_value
             st.session_state.metrics[name]["last_update"] = now
-            st.session_state.metrics[name]["history"].append(new_value) # Añade al historial
+            st.session_state.metrics[name]["history"].append(new_value)
             st.session_state.metrics_processed_count += 1
             log_metric_to_file(name, new_value)
 
@@ -68,7 +65,7 @@ while True:
     update_metrics()
 
     with placeholder.container():
-        # --- SECCIÓN DE MÉTRICAS Y BARRAS (Sin cambios) ---
+        # --- SECCIÓN DE MÉTRICAS Y BARRAS ---
         cpu_val = st.session_state.metrics["CPU"]["value"]
         ram_val = st.session_state.metrics["RAM"]["value"]
         disk_val = st.session_state.metrics["Disco"]["value"]
@@ -91,29 +88,26 @@ while True:
         st.info(f"**Total de Métricas Procesadas:** {count}")
         st.markdown("---")
 
-        # --- NUEVA SECCIÓN: HISTOGRAMAS DE DISTRIBUCIÓN ---
+        # --- SECCIÓN: HISTOGRAMAS DE DISTRIBUCIÓN ---
         st.markdown("### Distribución Histórica de Métricas")
-        
         hist_col1, hist_col2, hist_col3 = st.columns(3)
 
-        # Itera sobre las métricas para crear cada gráfico
         for col, name in zip([hist_col1, hist_col2, hist_col3], ["CPU", "RAM", "Disco"]):
             with col:
                 history = st.session_state.metrics[name]["history"]
-                # Solo muestra el gráfico si hay datos suficientes
                 if len(history) > 1:
                     fig, ax = plt.subplots(figsize=(10, 6))
-                    sns.histplot(data=history, kde=True, ax=ax, bins=15) # kde=True dibuja el polígono
+                    sns.histplot(data=history, kde=True, ax=ax, bins=15)
                     ax.set_title(f"Distribución de {name}")
                     ax.set_xlabel("Uso (%)")
                     ax.set_ylabel("Frecuencia")
-                    ax.set_xlim(0, 100) # Fija el eje X entre 0 y 100
+                    ax.set_xlim(0, 100)
                     st.pyplot(fig)
-                    plt.close(fig) # Importante para liberar memoria en el bucle
+                    plt.close(fig)
                 else:
                     st.text(f"Esperando más datos para {name}...")
 
-        # --- SECCIÓN DEL LOG Y DESCARGA (Sin cambios) ---
+        # --- SECCIÓN DEL LOG Y DESCARGA ---
         st.markdown("---")
         with open("metrics_log.txt", "r") as f:
             log_content_text = f.read()
@@ -127,8 +121,10 @@ while True:
                data=log_content_text,
                file_name='metrics_log.txt',
                mime='text/plain',
+               key='download_log_button' # <--- ESTA ES LA LÍNEA QUE ARREGLA EL ERROR
             )
         with st.expander("Ver contenido del archivo metrics_log.txt"):
             st.code(log_content_text, language="text")
 
     time.sleep(0.5)
+
